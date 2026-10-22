@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<!--
+DESIGN CONCEPT: "The Living Notebook"
+Farica is a fresher Data Analyst, so the site IS a Jupyter notebook: every section is a numbered In [n] cell
+that "executes" on scroll (or via Run All) and reveals its output. Signature element: a hero scatter plot of a
+simulated sample where a cursor sweep flags anomalies, echoing her Credit Card Fraud Analysis work.
+Skills are shown as a five-stage analysis pipeline instead of bars or percentages (no invented numbers).
+Navigation is a notebook toolbar + cell index. Type: JetBrains Mono (code) + Space Grotesk (prose).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Farica · Data Analyst Portfolio</title>
+<meta name="description" content="Farica, aspiring Data Analyst: Python, SQL, EDA, and predictive modeling. Notebook-style portfolio.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f5f0;--panel:#fff;--ink:#16181d;--mute:#5a606b;--line:#dcdad0;--accent:#0b7a5a;--hot:#c8321f;--kw:#7a3fc4;--str:#a35a00;--code:#f0efe8;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1116;--panel:#151a22;--ink:#e8ebf0;--mute:#98a1ae;--line:#262d38;--accent:#3ddc97;--hot:#ff6b57;--kw:#c39bff;--str:#ffb86b;--code:#0b0e13;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e1116;--panel:#151a22;--ink:#e8ebf0;--mute:#98a1ae;--line:#262d38;--accent:#3ddc97;--hot:#ff6b57;--kw:#c39bff;--str:#ffb86b;--code:#0b0e13;color-scheme:dark}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:smooth;scroll-padding-top:calc(72px + env(safe-area-inset-top,0px))}
+body{background:var(--bg);color:var(--ink);font:400 17px/1.6 "Space Grotesk",system-ui,sans-serif;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);-webkit-text-size-adjust:100%}
+.mono,code{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.skip{position:absolute;left:-999px;top:8px;background:var(--accent);color:var(--bg);padding:8px 12px;z-index:100}.skip:focus{left:8px}
+/* ambient + interaction layer */
+.glow{position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(620px 420px at 12% 8%,color-mix(in srgb,var(--accent) 16%,transparent),transparent),radial-gradient(520px 420px at 92% 55%,color-mix(in srgb,var(--kw) 14%,transparent),transparent),radial-gradient(var(--line) 1px,transparent 1px) 0 0/28px 28px;animation:drift 14s ease-in-out infinite alternate}
+@keyframes drift{to{background-position:30px 20px,-30px -20px,0 0}}
+.progress{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--accent),var(--kw),var(--hot));z-index:50}
+h1 .nm{background:linear-gradient(90deg,var(--ink),var(--accent),var(--kw),var(--ink));background-size:250% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:sh 7s linear infinite}
+@keyframes sh{to{background-position:250% center}}
+.caret{display:inline-block;width:8px;height:1em;background:var(--accent);vertical-align:-2px;margin-left:3px;animation:bl 1s steps(1) infinite}
+@keyframes bl{50%{opacity:0}}
+.box{position:relative;transition:border-color .25s,box-shadow .25s}
+.box:hover{border-color:color-mix(in srgb,var(--accent) 55%,var(--line));box-shadow:0 10px 40px -18px var(--accent)}
+.box::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .3s;background:radial-gradient(380px circle at var(--mx,50%) var(--my,50%),color-mix(in srgb,var(--accent) 11%,transparent),transparent 62%)}
+.box:hover::after{opacity:1}
+.src{position:relative;display:flex;justify-content:space-between;gap:12px;align-items:center}
+.rerun{background:transparent;border:1px solid var(--line);color:var(--mute);border-radius:6px;padding:2px 9px;font:inherit;font-size:12px;flex:none}
+.rerun:hover{color:var(--accent);border-color:var(--accent)}
+.pipe li{cursor:pointer;transition:transform .15s,border-color .2s,background .2s;will-change:transform}
+.pipe li.sel{border-color:var(--accent);background:var(--panel);box-shadow:0 8px 28px -14px var(--accent)}
+.detail{margin-top:12px;border-left:3px solid var(--accent);padding:10px 14px;background:var(--code);border-radius:0 8px 8px 0;font-size:14.5px;color:var(--ink);min-height:3.4em}
+.links button{border:1px solid var(--line);padding:9px 14px;border-radius:8px;font-size:14px;color:var(--ink);background:var(--bg)}
+.links button:hover{border-color:var(--accent);color:var(--accent)}
+.steps li{transition:transform .2s}.steps li:hover{transform:translateX(6px)}
+.chip{transition:transform .2s,border-color .2s}.chip:hover{transform:translateY(-3px) rotate(-2deg);border-color:var(--accent)}
+/* toolbar */
+header.bar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.bar-in{max-width:1040px;margin:auto;padding:10px 20px;display:flex;align-items:center;gap:14px;font-size:13px}
+.bar-in .title{font-weight:700;white-space:nowrap}
+.bar-in nav{display:flex;gap:4px;overflow-x:auto;flex:1;scrollbar-width:none}
+.bar-in nav::-webkit-scrollbar{display:none}
+nav a{color:var(--mute);text-decoration:none;padding:6px 10px;border-radius:6px;white-space:nowrap}
+nav a:hover,nav a.on{background:var(--code);color:var(--ink)}
+button{font:inherit;cursor:pointer}
+.btn{background:var(--accent);color:var(--bg);border:0;border-radius:6px;padding:7px 12px;font-weight:700;font-size:13px;white-space:nowrap}
+.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+main{max-width:1040px;margin:auto;padding:0 20px 80px}
+/* hero */
+.hero{padding:56px 0 24px;display:grid;grid-template-columns:1.05fr 1fr;gap:28px;align-items:center}
+.kicker{color:var(--accent);font-size:13px;margin-bottom:12px}
+h1{font-size:clamp(44px,9vw,92px);line-height:.95;letter-spacing:-.04em}
+h1 span{color:var(--accent)}
+.lede{margin:20px 0;color:var(--mute);max-width:46ch;font-size:18px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--panel);border-radius:99px;padding:3px 12px;font-size:12.5px}
+.plot{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;position:relative}
+.plot canvas{width:100%;height:auto;aspect-ratio:4/3;display:block;border-radius:8px;touch-action:pan-y}
+.plot figcaption{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--mute);padding:8px 4px 0}
+.plot b{color:var(--hot)}
+/* cells */
+.cell{display:grid;grid-template-columns:76px 1fr;gap:12px;margin-top:34px}
+.prompt{font-size:12.5px;color:var(--mute);text-align:right;padding-top:14px;user-select:none}
+.prompt.run{color:var(--accent)}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;min-width:0}
+.src{background:var(--code);padding:13px 16px;font-size:13.5px;border-bottom:1px solid var(--line);overflow-x:auto;white-space:pre}
+.kw{color:var(--kw)}.st{color:var(--str)}.cm{color:var(--mute)}
+.out{padding:20px 18px;opacity:0;transform:translateY(8px);transition:opacity .5s,transform .5s}
+.cell.done .out{opacity:1;transform:none}
+h2{font-size:clamp(24px,4vw,34px);letter-spacing:-.02em;margin-bottom:10px}
+.out p{color:var(--mute);max-width:68ch}
+table{border-collapse:collapse;width:100%;font-size:14px;margin-top:12px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mute);font-weight:500;width:34%}
+.scroll{overflow-x:auto}
+/* pipeline */
+.pipe{list-style:none;padding:0;display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:14px}
+.pipe li{border:1px solid var(--line);border-radius:10px;padding:14px 12px;background:var(--bg);transition:transform .2s,border-color .2s;position:relative}
+.pipe li:hover,.pipe li:focus-within{transform:translateY(-4px);border-color:var(--accent)}
+.pipe .n{font-size:11px;color:var(--accent)}
+.pipe h3{font-size:16px;margin:2px 0 6px}
+.pipe p{font-size:13.5px;line-height:1.45}
+.pipe small{display:block;margin-top:8px;font-size:12px;color:var(--ink)}
+/* projects */
+.proj-head{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:baseline;justify-content:space-between}
+.proj-head h2{margin:0}
+.tag{font-size:12px;color:var(--accent);border:1px solid var(--accent);border-radius:99px;padding:1px 10px}
+.steps{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:8px}
+.steps li{display:grid;grid-template-columns:auto 1fr;gap:10px;color:var(--mute)}
+.steps li::before{content:"✓";color:var(--accent);font-family:"JetBrains Mono",monospace}
+.steps b{color:var(--ink);font-weight:500}
+/* contact */
+.mail{display:block;font-size:clamp(18px,4.6vw,34px);font-weight:700;letter-spacing:-.02em;word-break:break-all;margin:6px 0 16px;color:var(--ink);text-decoration-color:var(--accent);text-underline-offset:6px}
+.links{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.links a{border:1px solid var(--line);padding:9px 14px;border-radius:8px;text-decoration:none;font-size:14px;color:var(--ink);background:var(--bg)}
+.links a:hover{border-color:var(--accent);color:var(--accent)}
+footer{max-width:1040px;margin:auto;padding:0 20px 40px;color:var(--mute);font-size:12.5px}
+@media (max-width:820px){.hero{grid-template-columns:1fr;padding-top:32px}.pipe{grid-template-columns:1fr 1fr}.pipe li:last-child{grid-column:1/-1}}
+@media (max-width:560px){.cell{grid-template-columns:1fr;gap:4px}.prompt{text-align:left;padding:0}.bar-in .title{display:none}.pipe{grid-template-columns:1fr}th{width:40%}body{font-size:16px}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}.out{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="progress" id="prog" aria-hidden="true"></div>
+<div class="glow" aria-hidden="true"></div>
+<header class="bar">
+  <div class="bar-in mono">
+    <span class="title">farica.ipynb</span>
+    <nav aria-label="Notebook sections">
+      <a href="#profile">In [1] profile</a><a href="#skills">In [2] skills</a><a href="#projects">In [3] projects</a><a href="#experience">In [6] experience</a><a href="#contact">In [8] contact</a>
+    </nav>
+    <button class="btn" id="runall" type="button">▶ Run all</button>
+    <button class="btn ghost" id="theme" type="button" aria-label="Toggle light or dark theme">◐</button>
+  </div>
+</header>
+
+<main id="main">
+  <section class="hero" aria-labelledby="hi">
+    <div>
+      <p class="kicker mono">&gt;&gt;&gt; <span id="type">Data Analyst</span><span class="caret" aria-hidden="true"></span></p>
+      <h1 id="hi"><span class="nm">Farica</span><span>.</span></h1>
+      <p class="lede">Aspiring Data Analyst who turns raw, messy data into clear insight: cleaning, exploring, modeling and telling the story behind the numbers.</p>
+      <div class="chips mono" aria-label="Core tools">
+        <span class="chip">Python</span><span class="chip">SQL</span><span class="chip">Pandas</span><span class="chip">NumPy</span><span class="chip">EDA</span><span class="chip">Statistics</span>
+      </div>
+    </div>
+    <figure class="plot">
+      <canvas id="plot" width="640" height="480" role="img" aria-label="Decorative scatter plot of a simulated sample. Moving the pointer over it flags outlier points as anomalies."></canvas>
+      <figcaption class="mono"><span>simulated sample · move pointer to scan</span><span>flagged: <b id="flag">0</b></span></figcaption>
+    </figure>
+  </section>
+
+  <article class="cell" id="profile" data-n="1">
+    <div class="prompt mono">In [ ]:</div>
+    <div class="box">
+      <div class="src mono"><span class="kw">print</span>(farica.<span class="kw">describe</span>())</div>
+      <div class="out">
+        <h2>Profile summary</h2>
+        <p>Computer Science student with a strong foundation in Python, SQL and statistical analysis, comfortable across the whole workflow: exploratory analysis, preprocessing, visualization, and building and evaluating machine learning models.</p>
+        <div class="scroll"><table>
+          <tr><th>stage</th><td>Fresher · B.Tech student</td></tr>
+          <tr><th>degree</th><td>B.Tech, Computer Science &amp; Engineering · GNA University, Phagwara (2023–Present)</td></tr>
+          <tr><th>cgpa</th><td>8.4 / 10 (current)</td></tr>
+          <tr><th>projects</th><td>3 (DNA risk analysis, Titanic EDA, credit card fraud)</td></tr>
+          <tr><th>interests</th><td>Data-driven decisions · BI reporting · Predictive analytics · Visualization storytelling · Statistical modeling</td></tr>
+        </table></div>
+      </div>
+    </div>
+  </article>
+
+  <article class="cell" id="skills" data-n="2">
+    <div class="prompt mono">In [ ]:</div>
+    <div class="box">
+      <div class="src mono"><span class="kw">for</span> stage <span class="kw">in</span> pipeline: stage.<span class="kw">run</span>()</div>
+      <div class="out">
+        <h2>My analysis pipeline</h2>
+        <p>Skills laid out the way I actually use them, from raw file to decision.</p>
+        <ol class="pipe">
+          <li tabindex="0"><span class="n mono">01</span><h3>Ingest</h3><p>Load and structure raw datasets.</p><small class="mono">Python · SQL</small></li>
+          <li tabindex="0"><span class="n mono">02</span><h3>Clean</h3><p>Missing values, inconsistent formats, outliers, class imbalance.</p><small class="mono">Pandas · NumPy</small></li>
+          <li tabindex="0"><span class="n mono">03</span><h3>Explore</h3><p>Trends, patterns, correlations and hypothesis tests.</p><small class="mono">EDA · Statistics</small></li>
+          <li tabindex="0"><span class="n mono">04</span><h3>Model</h3><p>Build and evaluate classification and predictive models.</p><small class="mono">Predictive modeling</small></li>
+          <li tabindex="0"><span class="n mono">05</span><h3>Communicate</h3><p>Charts that make the insight obvious.</p><small class="mono">Visualization</small></li>
+        </ol>
+        <p class="detail" id="detail" aria-live="polite">Tap or hover a stage to see where I used it in my projects.</p>
+        <p class="mono" style="margin-top:16px;font-size:13px">Also: C++ · Git · GitHub · VS Code · Jupyter Notebook</p>
+      </div>
+    </div>
+  </article>
+
+  <div id="projects"></div>
+
+  <article class="cell" data-n="3">
+    <div class="prompt mono">In [ ]:</div>
+    <div class="box">
+      <div class="src mono">df = <span class="kw">load</span>(<span class="st">"biomirror_dna"</span>)  <span class="cm"># project 1</span></div>
+      <div class="out">
+        <div class="proj-head"><h2>BioMirror: DNA Pattern Analysis &amp; Disease Prediction</h2><span class="tag mono">pattern recognition</span></div>
+        <ul class="steps">
+          <li><span><b>Analyzed</b> structured biological and DNA sequence data to find patterns linked to disease risk.</span></li>
+          <li><span><b>Built preprocessing pipelines</b> that clean and structure raw biological datasets.</span></li>
+          <li><span><b>Applied predictive techniques</b> to support disease risk prediction, turning complex biology into interpretable insight.</span></li>
+        </ul>
+        <div class="links"><a data-key="bioMirror" href="#projects" hidden>View project ↗</a></div>
+      </div>
+    </div>
+  </article>
+
+  <article class="cell" data-n="4">
+    <div class="prompt mono">In [ ]:</div>
+    <div class="box">
+      <div class="src mono">df = <span class="kw">load</span>(<span class="st">"titanic"</span>)  <span class="cm"># project 2</span></div>
+      <div class="out">
+        <div class="proj-head"><h2>Exploratory Data Analysis of the Titanic Dataset</h2><span class="tag mono">EDA · visualization</span></div>
+        <ul class="steps">
+          <li><span><b>Cleaned passenger data</b>, handling missing values and inconsistent formatting.</span></li>
+          <li><span><b>Uncovered survival patterns</b> across age, gender and class.</span></li>
+          <li><span><b>Visualized key relationships</b> with charts that communicate the insight clearly.</span></li>
+        </ul>
+        <div class="links"><a data-key="titanic" href="#projects" hidden>View project ↗</a></div>
+      </div>
+    </div>
+  </article>
+
+  <article class="cell" data-n="5">
+    <div class="prompt mono">In [ ]:</div>
+    <div class="box">
+      <div class="src mono">df = <span class="kw">load</span>(<span class="st">"credit_card_transactions"</span>)  <span class="cm"># project 3</span></div>
+      <div class="out">
+        <div class="proj-head"><h2>Credit Card Fraud Analysis</h2><span class="tag mono">classification · anomalies</span></div>
+        <ul class="steps">
+          <li><span><b>Analyzed transaction data</b> to detect patterns, anomalies and trends in spending and fraud behavior.</span></li>
+          <li><span><b>Cleaned and preprocessed</b> the data, handling class imbalance and outliers.</span></li>
+          <li><span><b>Built and evaluated classification models</b> to flag suspicious transactions, and visualized key fraud and spending indicators for reporting.</span></li>
+        </ul>
+      </div>
+    </div>
+  </article>
+
+  <article class="cell" id="experience" data-n="6">
+    <div class="prompt mono">In [ ]:</div>
+    <div class="box">
+      <div class="src mono">experience.<span class="kw">head</span>()  <span class="cm">|</span>  education.<span class="kw">head</span>()</div>
+      <div class="out">
+        <h2>Training &amp; credentials</h2>
+        <div class="scroll"><table>
+          <tr><th>Jul–Aug 2025</th><td><b>Data Science Using Python Trainee</b>, NITTTR, Sector 26, Chandigarh. Hands-on training in data analysis and visualization with Python; built foundations in data science workflows and analytical thinking; created visualizations to spot trends, patterns and correlations.</td></tr>
+          <tr><th>Certification</th><td>IBM SkillsBuild: Getting Started with Artificial Intelligence</td></tr>
+          <tr><th>Workshop</th><td>Deep Learning Workshop: fundamentals of neural networks and deep learning concepts</td></tr>
+        </table></div>
+      </div>
+    </div>
+  </article>
+
+  <article class="cell" id="contact" data-n="8">
+    <div class="prompt mono">In [ ]:</div>
+    <div class="box">
+      <div class="src mono"><span class="kw">def</span> <span class="st">hire</span>(farica): <span class="kw">return</span> <span class="st">"let's talk"</span></div>
+      <div class="out">
+        <h2>Let’s turn your data into decisions.</h2>
+        <p>Open to data analyst roles and internships. Based in Ludhiana, Punjab, India.</p>
+        <a class="mail mono" href="mailto:faricaq@gmail.com">faricaq@gmail.com</a>
+        <div class="links">
+          <a href="mailto:faricaq@gmail.com?subject=Hello%20Farica">Send an email</a>
+          <button type="button" id="copy">Copy email</button>
+          <a href="tel:+919780835325">+91 9780835325</a>
+          <a data-key="linkedin" href="#contact" hidden>LinkedIn ↗</a>
+          <a data-key="github" href="#contact" hidden>GitHub ↗</a>
+        </div>
+      </div>
+    </div>
+  </article>
+</main>
+<footer class="mono">Kernel idle · © Farica · Plot above is a simulated sample for illustration, not real data.</footer>
+
+<script>
+/* Add your real URLs here: they appear automatically when filled in. */
+const LINKS={linkedin:"",github:"",bioMirror:"",titanic:""};
+document.querySelectorAll("[data-key]").forEach(a=>{const u=LINKS[a.dataset.key];if(u){a.href=u;a.target="_blank";a.rel="noopener";a.hidden=false}});
+
+const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+/* theme */
+const root=document.documentElement;
+document.getElementById("theme").onclick=()=>{
+  const dark=root.dataset.theme?root.dataset.theme==="dark":matchMedia("(prefers-color-scheme: dark)").matches;
+  root.dataset.theme=dark?"light":"dark";draw();
+};
+/* cell execution */
+const cells=[...document.querySelectorAll(".cell")];
+let counter=0;
+function run(c){
+  if(c.classList.contains("done"))return;
+  c.classList.add("done");
+  const p=c.querySelector(".prompt");p.textContent="In ["+(++counter)+"]:";p.classList.add("run");
+}
+if(reduce){cells.forEach(run)}
+else{
+  const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){run(e.target);io.unobserve(e.target)}}),{threshold:.25});
+  cells.forEach(c=>io.observe(c));
+}
+document.getElementById("runall").onclick=()=>{
+  cells.forEach((c,i)=>reduce?run(c):setTimeout(()=>run(c),i*160));
+};
+/* active nav */
+const links=[...document.querySelectorAll("nav a")];
+const secs=links.map(a=>document.querySelector(a.getAttribute("href")));
+addEventListener("scroll",()=>{
+  let k=0;secs.forEach((s,i)=>{if(s&&s.getBoundingClientRect().top<160)k=i});
+  links.forEach((a,i)=>a.classList.toggle("on",i===k));
+},{passive:true});
+
+/* signature scatter: simulated sample, outliers flagged on scan */
+const cv=document.getElementById("plot"),cx=cv.getContext("2d"),flagEl=document.getElementById("flag");
+const W=cv.width,H=cv.height;
+let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+const gauss=()=>Math.sqrt(-2*Math.log(rnd()+1e-9))*Math.cos(2*Math.PI*rnd());
+const pts=[];
+for(let i=0;i<170;i++){const x=.5+gauss()*.13,y=.5+(x-.5)*.7+gauss()*.07;pts.push({x,y,out:false,seen:false})}
+for(let i=0;i<9;i++){const a=rnd()*6.28,r=.33+rnd()*.12;pts.push({x:.5+Math.cos(a)*r,y:.5+Math.sin(a)*r*.9,out:true,seen:false})}
+let mx=-1,my=-1,tt=0;
+const css=n=>getComputedStyle(root).getPropertyValue(n).trim();
+function draw(){
+  cx.clearRect(0,0,W,H);
+  const line=css("--line"),acc=css("--accent"),hot=css("--hot"),mute=css("--mute");
+  cx.strokeStyle=line;cx.lineWidth=1;
+  for(let i=1;i<8;i++){cx.beginPath();cx.moveTo(i*W/8,0);cx.lineTo(i*W/8,H);cx.stroke();cx.beginPath();cx.moveTo(0,i*H/8);cx.lineTo(W,i*H/8);cx.stroke()}
+  const R=70;
+  if(mx>=0){cx.strokeStyle=acc;cx.setLineDash([5,5]);cx.beginPath();cx.arc(mx,my,R,0,7);cx.stroke();cx.setLineDash([])}
+  let n=0;
+  pts.forEach(p=>{
+    const px=p.x*W,py=p.y*H;
+    if(p.out&&mx>=0&&Math.hypot(px-mx,py-my)<R)p.seen=true;
+    if(p.seen)n++;
+    cx.beginPath();cx.arc(px,py,p.seen?6:3.4,0,7);
+    cx.fillStyle=p.seen?hot:acc;cx.globalAlpha=p.seen?1:.7;cx.fill();cx.globalAlpha=1;
+    if(p.seen){cx.strokeStyle=hot;cx.beginPath();cx.arc(px,py,11+Math.sin(tt/12)*2,0,7);cx.stroke()}
+  });
+  cx.fillStyle=mute;cx.font="14px JetBrains Mono, monospace";cx.fillText("x: feature_a",12,H-12);
+  cx.save();cx.translate(18,H-90);cx.rotate(-Math.PI/2);cx.fillText("y: feature_b",0,0);cx.restore();
+  flagEl.textContent=n;
+}
+function move(e){
+  const r=cv.getBoundingClientRect(),t=e.touches?e.touches[0]:e;
+  mx=(t.clientX-r.left)*W/r.width;my=(t.clientY-r.top)*H/r.height;if(reduce)draw();
+}
+cv.addEventListener("pointermove",move);
+cv.addEventListener("pointerleave",()=>{mx=my=-1;if(reduce)draw()});
+if(reduce){pts.forEach(p=>{if(p.out)p.seen=true});draw()}
+else{(function loop(){tt++;draw();requestAnimationFrame(loop)})()}
+
+/* scroll progress */
+const prog=document.getElementById("prog");
+addEventListener("scroll",()=>{const h=document.documentElement;prog.style.width=(h.scrollTop/(h.scrollHeight-h.clientHeight||1)*100)+"%"},{passive:true});
+
+/* cursor spotlight on cells */
+document.querySelectorAll(".box").forEach(b=>b.addEventListener("pointermove",e=>{const r=b.getBoundingClientRect();b.style.setProperty("--mx",(e.clientX-r.left)+"px");b.style.setProperty("--my",(e.clientY-r.top)+"px")}));
+
+/* re-run buttons on every cell */
+cells.forEach(c=>{
+  const s=c.querySelector(".src"),b=document.createElement("button");
+  b.type="button";b.className="rerun";b.textContent="▶ run";b.setAttribute("aria-label","Re-run this cell");
+  b.onclick=()=>{c.classList.remove("done");if(reduce){c.classList.add("done");return}setTimeout(()=>c.classList.add("done"),60)};
+  s.appendChild(b);
+});
+
+/* typewriter role line */
+const roles=["Data Analyst","Python · SQL · EDA","Predictive Modeling","Data Storytelling"],ty=document.getElementById("type");
+if(!reduce){let ri=0,ci=0,del=false;(function tick(){
+  const w=roles[ri];ci+=del?-1:1;ty.textContent=w.slice(0,ci);
+  let d=del?35:70;
+  if(!del&&ci===w.length){del=true;d=1400}else if(del&&ci===0){del=false;ri=(ri+1)%roles.length;d=300}
+  setTimeout(tick,d);
+})()}
+
+/* pipeline: click/hover for details + tilt */
+const info=[
+ "Ingest: Python and SQL are my starting point for getting raw data into a workable shape.",
+ "Clean: missing values and inconsistent formatting (Titanic), class imbalance and outliers (Fraud), pipelines that structure raw biological data (BioMirror).",
+ "Explore: survival patterns across age, gender and class (Titanic), anomalies and spending trends (Fraud).",
+ "Model: classification models to flag suspicious transactions (Fraud) and predictive techniques for disease risk (BioMirror).",
+ "Communicate: charts for key relationships and fraud indicators, plus trend and correlation visuals from my NITTTR training."
+];
+const det=document.getElementById("detail"),lis=[...document.querySelectorAll(".pipe li")];
+function pick(i){lis.forEach((l,j)=>l.classList.toggle("sel",i===j));det.textContent=info[i]}
+lis.forEach((l,i)=>{
+  l.addEventListener("click",()=>pick(i));
+  l.addEventListener("mouseenter",()=>pick(i));
+  l.addEventListener("focus",()=>pick(i));
+  l.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();pick(i)}});
+  if(!reduce){
+    l.addEventListener("pointermove",e=>{const r=l.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;l.style.transform="perspective(600px) rotateX("+(-y*10)+"deg) rotateY("+(x*12)+"deg) translateY(-4px)"});
+    l.addEventListener("pointerleave",()=>{l.style.transform=""});
+  }
+});
+
+/* copy email */
+const cp=document.getElementById("copy");
+cp.onclick=async()=>{
+  try{await navigator.clipboard.writeText("faricaq@gmail.com");cp.textContent="Copied ✓"}catch(e){cp.textContent="faricaq@gmail.com"}
+  setTimeout(()=>cp.textContent="Copy email",2000);
+};
+</script>
+</body>
+</html>
